@@ -1,0 +1,11 @@
+# Convert a PDF to a series of PNG images
+magick -density 100  msft-10q_20180331.htm.pdf -colorspace LinearGray ./out/msft-%d.png
+
+# Split png into tiles
+magick msft-0.png -crop 50x50 +repage +adjoin tiles/tile_%d.png
+
+The problem with the above tiling is that we end up with many tiles that only have partial characters (i.e., the top third of a word). These are completely illegible so we wouldn't necessarily want to label them as words. However, if the word is split between tiles, it may never get properly captured. Can we overlap tiles to mitigate this problem? I.e., if one tile only captures half a character, the next tile should capture the complete character. This may be less of an issue for training and more important at detection time.
+
+I need a tool to label 50x50 screenshots. I would think this tool would display an image and accept an input to capture the category. The output of the tool could be a CSV record of the image portion and the category.
+So the key question is how do we display the 
+
