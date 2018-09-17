@@ -1,3 +1,45 @@
+## 2018-09-17
+I have an idea for an alternate strategy for labelling training data. 
+It would be good to have a screen which loaded up the full page image.
+Then, I could drag rectangles over the labelled areas, such as paragraphs.
+This geography information is stored for each image.
+
+Next, I run the magick commands to split the image into tiles but this time
+I keep track of the geographic coordinate of each tile.
+With this information, I can find if the tile overlaps with the original
+labelling geometries.
+This should allow quick and accurate labelling of large numbers of tiles.
+
+There are a few tools needed for this workflow.
+1. A visual UI for marking geometries.
+2. A way of saving geometries for images.
+3. A tool for chopping up images but retaining coordinate associations.
+4. A tool for projecting image labels onto individual tiles.
+
+After all this, I can complete the training.
+
+Next, I would like a similar tool for visually assessing the training.
+This would involve predicting on more tiles and then drawing those 
+predictions onto the image.
+
+1. Same tool as #3 above.
+2. A tool for converting tile predictions back into an image geometry
+    (from #2 above)
+3. A visual UI tool for overlaying a saved geometry on an image.
+
+The first tool I'm seeing here is the visual geometry tool.
+This would be a UI which displays an image and allows:
+- Loading a set of geometries
+- Saving a set of geometries
+- Drawing or deleting geometries
+
+I should take a look at HTML canvas for the visual/interactive elements.
+The geometries can probably be exported as some sort of JSON, relative to 
+the image.
+
+
+
+## 2018-09-16
 # Convert a PDF to a series of PNG images
 magick -density 100  msft-10q_20180331.htm.pdf -colorspace LinearGray ./out/msft-%d.png
 
@@ -7,5 +49,4 @@ magick msft-0.png -crop 50x50 +repage +adjoin tiles/tile_%d.png
 The problem with the above tiling is that we end up with many tiles that only have partial characters (i.e., the top third of a word). These are completely illegible so we wouldn't necessarily want to label them as words. However, if the word is split between tiles, it may never get properly captured. Can we overlap tiles to mitigate this problem? I.e., if one tile only captures half a character, the next tile should capture the complete character. This may be less of an issue for training and more important at detection time.
 
 I need a tool to label 50x50 screenshots. I would think this tool would display an image and accept an input to capture the category. The output of the tool could be a CSV record of the image portion and the category.
-So the key question is how do we display the 
 

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<head>
+  <script>
+    
+  </script>
+  <style>
+    .display {
+      border: 1px solid #000;
+    }
+  </style>
+<body>
+  <p><input type="file" id="file-picker" accept="image/png, image/jpeg"><button id="upload-button">Upload</button></p>
+  <div id="container"></div>
+<script>
+class CanvasState {
+  constructor() {
+    this.dragging = false;
+  }
+
+  isDragging() {
+    return this.dragging;
+  }
+
+  startDragging() {
+    this.dragging = true;
+  }
+
+  stopDragging() {
+    this.dragging = false;
+  }
+}
+
+class Canvas {
+  constructor(el, img) {
+    this.el = el;
+    this.ctx = el.getContext('2d');
+    this.state = new CanvasState();
+    this.img = img;
+
+    this.el.addEventListener('mousedown', this.handleMouseDown.bind(this));
+    this.el.addEventListener('mouseup', this.handleMouseUp.bind(this));
+
+    setInterval(this.draw.bind(this), 30);
+  }
+
+  draw() {
+    this.ctx.clearRect(0, 0, this.el.width, this.el.height);
+    this.ctx.drawImage(this.img, 0, 0);
+
+    if(this.state.isDragging()) {
+      this.ctx.fillStyle = 'green';
+      this.ctx.fillRect(20, 20, 40, 40);
+    }
+  }
+
+  handleMouseDown() {
+    this.state.startDragging();
+  }
+
+  handleMouseUp() {
+    this.state.stopDragging();
+  }
+}
+
+function handle_file_picked() {
+  const $file_picker = document.getElementById('file-picker');
+  const file = $file_picker.files[0];
+  console.log('File: %o', file);
+
+  const pFileLoaded = new Promise(function(resolve, reject) {
+    const fr = new FileReader();
+    fr.onload = resolve;
+    fr.readAsDataURL(file);
+  });
+
+  const pImageLoaded = pFileLoaded.then(function(e) {
+    const image = e.target.result;
+
+    const img = new Image();
+    img.src = image;
+    return new Promise(function(resolve, reject) {
+      img.addEventListener('load', function() {
+        resolve(img);
+      });
+    });
+  });
+
+  pImageLoaded.then(function(img) {
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+
+    const $canvas = document.createElement('canvas');
+    $canvas.setAttribute('width', width);
+    $canvas.setAttribute('height', height);
+
+    const canvas = new Canvas($canvas, img);
+
+    const $container = document.getElementById('container');
+    $container.appendChild($canvas);
+  });
+}
+
+const $upload_button = document.getElementById('upload-button');
+$upload_button.onclick=handle_file_picked;
+
+</script>
