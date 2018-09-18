@@ -1,0 +1,11 @@
+{
+  "name": "labelling",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Toby Sullivan",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "multiparty": "^4.2.1"
+  }
+}

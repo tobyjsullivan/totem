@@ -9,56 +9,120 @@
     }
   </style>
 <body>
-  <p><input type="file" id="file-picker" accept="image/png, image/jpeg"><button id="upload-button">Upload</button></p>
+  <p>PDF: <input type="file" id="pdf-picker"><button id="pdf-upload-button">Upload PDF</button></p>
   <div id="container"></div>
+  <p><input type="file" id="file-picker" accept="image/png, image/jpeg"><button id="upload-button">Upload Image</button></p>
+  <p><textarea id="output" cols="60" rows="30"></textarea></p>
 <script>
 class CanvasState {
   constructor() {
     this.dragging = false;
+    this.rectangles = [];
   }
 
   isDragging() {
     return this.dragging;
   }
 
-  startDragging() {
+  getDragStart() {
+    return this.drag_start;
+  }
+
+  getDragEnd() {
+    return this.drag_end;
+  }
+
+  setDragEnd(x, y) {
+    this.drag_end = {x, y};
+  }
+
+  startDragging(x, y) {
     this.dragging = true;
+    this.drag_start = {x, y};
+    this.drag_end = this.drag_start;
   }
 
   stopDragging() {
     this.dragging = false;
+    this.drag_start = undefined;
+    this.drag_end = undefined;
+  }
+
+  addRect(x, y, width, height) {
+    console.log('addRect %o, %o, %o, %o', x, y, width, height);
+    this.rectangles.push({x, y, width, height});
+  }
+
+  getRectangles() {
+    return this.rectangles;
   }
 }
 
 class Canvas {
-  constructor(el, img) {
-    this.el = el;
-    this.ctx = el.getContext('2d');
+  constructor($canvas, img) {
+    this.$canvas = $canvas;
     this.state = new CanvasState();
     this.img = img;
 
-    this.el.addEventListener('mousedown', this.handleMouseDown.bind(this));
-    this.el.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    $canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+    $canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    $canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
 
-    setInterval(this.draw.bind(this), 30);
+    const ctx = $canvas.getContext('2d');
+    setInterval(() => this.draw(ctx), 30);
   }
 
-  draw() {
-    this.ctx.clearRect(0, 0, this.el.width, this.el.height);
-    this.ctx.drawImage(this.img, 0, 0);
+  draw(ctx) {
+    ctx.clearRect(0, 0, this.$canvas.width, this.$canvas.height);
+    ctx.drawImage(this.img, 0, 0);
+
+    const rects = this.state.getRectangles();
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    for (let idx in rects) {
+      const rect = rects[idx];
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
 
     if(this.state.isDragging()) {
-      this.ctx.fillStyle = 'green';
-      this.ctx.fillRect(20, 20, 40, 40);
+      ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+      const start = this.state.getDragStart();
+      const end = this.state.getDragEnd();
+      ctx.fillRect(start.x, start.y, end.x - start.x, end.y - start.y);
+    }
+
+  }
+
+  handleMouseDown(evt) {
+    const pos = this.calcMousePos(evt);
+    this.state.startDragging(pos.x, pos.y);
+  }
+
+  handleMouseMove(evt) {
+    const pos = this.calcMousePos(evt);
+    this.state.setDragEnd(pos.x, pos.y);
+  }
+
+  handleMouseUp(evt) {
+    const start = this.state.getDragStart();
+    const end = this.calcMousePos(evt);
+    this.state.stopDragging();
+    this.state.addRect(start.x, start.y, end.x - start.x, end.y - start.y);
+    this.fireChanged();
+  }
+
+  fireChanged() {
+    if (this.onchange) {
+      const rects = this.state.getRectangles();
+      this.onchange(rects);
     }
   }
 
-  handleMouseDown() {
-    this.state.startDragging();
-  }
-
-  handleMouseUp() {
-    this.state.stopDragging();
+  calcMousePos(evt) {
+    const rect = this.$canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
   }
 }
 
@@ -94,13 +158,34 @@ function handle_file_picked() {
     $canvas.setAttribute('height', height);
 
     const canvas = new Canvas($canvas, img);
+    canvas.onchange = (rects) => handle_img_changed(file.name, rects);
 
     const $container = document.getElementById('container');
     $container.appendChild($canvas);
   });
 }
 
+const output = {};
+const $output = document.getElementById('output');
+
+function handle_img_changed(filename, rects) {
+  output[filename] = rects;
+  $output.innerHTML = JSON.stringify(output, null, 2);
+}
+
 const $upload_button = document.getElementById('upload-button');
 $upload_button.onclick=handle_file_picked;
+
+const $pdf_upload_button = document.getElementById('pdf-upload-button');
+$pdf_upload_button.onclick = function() {
+  const $pdf_picker = document.getElementById('pdf-picker');
+  const formData = new FormData();
+  formData.append('hello', 'world');
+  formData.append('file', $pdf_picker.files[0]);
+  
+  const req = new XMLHttpRequest();
+  req.open('POST', 'http://localhost:8080/documents');
+  req.send(formData);
+}
 
 </script>
