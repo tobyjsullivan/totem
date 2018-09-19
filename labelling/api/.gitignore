@@ -1,1 +1,6 @@
 /node_modules
+
+# Application Data
+/documents
+/images
+/tiles

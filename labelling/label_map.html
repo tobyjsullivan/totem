@@ -9,7 +9,8 @@
     }
   </style>
 <body>
-  <p>PDF: <input type="file" id="pdf-picker"><button id="pdf-upload-button">Upload PDF</button></p>
+  <p>PDF: <input type="file" id="pdf-picker" accept="application/pdf"><button id="pdf-upload-button">Upload PDF</button></p>
+  <p id="flash" class="flash"></p>
   <div id="container"></div>
   <p><input type="file" id="file-picker" accept="image/png, image/jpeg"><button id="upload-button">Upload Image</button></p>
   <p><textarea id="output" cols="60" rows="30"></textarea></p>
@@ -173,6 +174,11 @@ function handle_img_changed(filename, rects) {
   $output.innerHTML = JSON.stringify(output, null, 2);
 }
 
+function set_flash(message) {
+  const $flash = document.getElementById('flash');
+  $flash.innerHTML = message;
+}
+
 const $upload_button = document.getElementById('upload-button');
 $upload_button.onclick=handle_file_picked;
 
@@ -186,6 +192,14 @@ $pdf_upload_button.onclick = function() {
   const req = new XMLHttpRequest();
   req.open('POST', 'http://localhost:8080/documents');
   req.send(formData);
+  req.addEventListener('load', function() {
+    console.log('upload result: %o', req);
+    set_flash('Upload successful.');
+  });
+  req.addEventListener('error', function(evt) {
+    console.log('upload error: %o', evt);
+    set_flash('Error during upload. See console.');
+  });
 }
 
 </script>

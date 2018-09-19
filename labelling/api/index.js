@@ -2,6 +2,15 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const multiparty = require('multiparty');
+const {exec} = require('child_process');
+
+// Posted PDF Documents go here
+const DOCUMENTS_DIR = './documents';
+// Each PDF is converted to PNGs (one per page) which
+// go here
+const IMAGES_DIR = './images';
+// Each page is cut into tiles which go here
+const TILES_DIR = './tiles';
 
 function serve(req, res) {
   const parsed = url.parse(req.url);
@@ -66,8 +75,17 @@ function handlePostDocuments(req, res) {
   });
   form.on('part', function(part) {
     if(part.filename) {
-      console.log('Received file %s', part.filename);
+      console.log('Receiving file %s', part.filename);
+      const tmpDir = fs.mkdtempSync(`${DOCUMENTS_DIR}/`);
+      const outpath = `${tmpDir}/${part.filename}`;
+      const ws = fs.createWriteStream(outpath);
+      part.pipe(ws);
+      console.log('File written %s', outpath);
       part.resume();
+      const pImgDir = convertDocumentToImages(outpath);
+      pImgDir.then(function(dir) {
+        console.log('Images written to %s', dir);
+      });
     } else {
       console.log('Received field %s', part.name);
       part.resume();
@@ -79,4 +97,34 @@ function handlePostDocuments(req, res) {
   form.parse(req);
 }
 
-http.createServer(serve).listen(8080);
+function convertDocumentToImages(filepath) {
+  const tmpDir = fs.mkdtempSync(`${IMAGES_DIR}/`);
+  return new Promise(function(resolve, reject) {
+    exec(`./pdf2pngs.sh "${filepath}" "${tmpDir}"`, function(err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(tmpDir);
+      }
+    });
+  });
+}
+
+function init() {
+  if(!fs.existsSync(DOCUMENTS_DIR)) {
+    fs.mkdirSync(DOCUMENTS_DIR);
+  }
+  if(!fs.existsSync(IMAGES_DIR)) {
+    fs.mkdirSync(IMAGES_DIR);
+  }
+  if(!fs.existsSync(TILES_DIR)) {
+    fs.mkdirSync(TILES_DIR);
+  }
+}
+
+function start() {
+  http.createServer(serve).listen(8080);
+}
+
+init();
+start();
