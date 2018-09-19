@@ -3,6 +3,7 @@ const url = require('url');
 const fs = require('fs');
 const multiparty = require('multiparty');
 const {exec} = require('child_process');
+const path = require('path');
 
 // Posted PDF Documents go here
 const DOCUMENTS_DIR = './documents';
@@ -85,6 +86,7 @@ function handlePostDocuments(req, res) {
       const pImgDir = convertDocumentToImages(outpath);
       pImgDir.then(function(dir) {
         console.log('Images written to %s', dir);
+        writeImageIndex(outpath, dir);
       });
     } else {
       console.log('Received field %s', part.name);
@@ -109,6 +111,26 @@ function convertDocumentToImages(filepath) {
     });
   });
 }
+
+function getImageIndexFile(docpath) {
+  return `${docpath}.idx.json`;
+}
+
+function writeImageIndex(docpath, imgdir) {
+  const imgfiles = fs.readdirSync(imgdir);
+  const index = [];
+  for(let i in imgfiles) {
+    const imgfile = imgfiles[i];
+    const pagenum = path.basename(imgfile).split('.')[0];
+    index.push({
+      page: parseInt(pagenum),
+      file: `${imgdir}/${imgfile}`
+    });
+  }
+  const indexContent = JSON.stringify(index);
+  const indexFilepath = getImageIndexFile(docpath);
+  fs.writeFileSync(indexFilepath, indexContent);
+} 
 
 function init() {
   if(!fs.existsSync(DOCUMENTS_DIR)) {
