@@ -1,17 +1,29 @@
 <!DOCTYPE html>
 <head>
   <script>
-    
+
   </script>
   <style>
+    body {
+      background-color: #e6e6e6;
+    }
+
     .display {
       border: 1px solid #000;
+    }
+
+    img.preview {
+      max-height: 200px;
+      max-width: 200px;
+      border: 1px solid #000;
+      margin: 5px;
     }
   </style>
 <body>
   <p>PDF: <input type="file" id="pdf-picker" accept="application/pdf"><button id="pdf-upload-button">Upload PDF</button></p>
   <p id="flash" class="flash"></p>
   <div id="container"></div>
+  <div id="images"></div>
   <p><input type="file" id="file-picker" accept="image/png, image/jpeg"><button id="upload-button">Upload Image</button></p>
   <p><textarea id="output" cols="60" rows="30"></textarea></p>
 <script>
@@ -90,7 +102,6 @@ class Canvas {
       const end = this.state.getDragEnd();
       ctx.fillRect(start.x, start.y, end.x - start.x, end.y - start.y);
     }
-
   }
 
   handleMouseDown(evt) {
@@ -138,17 +149,19 @@ function handle_file_picked() {
     fr.readAsDataURL(file);
   });
 
-  const pImageLoaded = pFileLoaded.then(function(e) {
-    const image = e.target.result;
+  pFileLoaded.then(function(e) {
+    set_image(e.target.result);
+  });
+}
 
-    const img = new Image();
-    img.src = image;
-    return new Promise(function(resolve, reject) {
-      img.addEventListener('load', function() {
-        resolve(img);
-      });
+function set_image(img_url) {
+  const img = new Image();
+  const pImageLoaded = new Promise(function(resolve, reject) {
+    img.addEventListener('load', function() {
+      resolve(img);
     });
   });
+  img.src = img_url;
 
   pImageLoaded.then(function(img) {
     const width = img.naturalWidth;
@@ -159,9 +172,10 @@ function handle_file_picked() {
     $canvas.setAttribute('height', height);
 
     const canvas = new Canvas($canvas, img);
-    canvas.onchange = (rects) => handle_img_changed(file.name, rects);
+    canvas.onchange = (rects) => handle_img_changed(img_url, rects);
 
     const $container = document.getElementById('container');
+    $container.innerHTML = '';
     $container.appendChild($canvas);
   });
 }
@@ -179,6 +193,35 @@ function set_flash(message) {
   $flash.innerHTML = message;
 }
 
+function fetch_images() {
+  return new Promise(function(resolve, reject) {
+    const req = new XMLHttpRequest();
+    req.addEventListener('load', function() {
+      const img_ids = JSON.parse(req.responseText);
+      resolve(img_ids);
+    });
+    req.open('GET', 'http://localhost:8080/images');
+    req.send();
+  });
+}
+
+function refresh_images() {
+  const $images = document.getElementById('images');
+  // Drop existing images
+  $images.innerHTML = '';
+  fetch_images().then(function(image_ids) {
+    for (let i in image_ids) {
+      const id = image_ids[i];
+      const img_url = `http://localhost:8080/files/${id}`;
+      const $img = document.createElement('img');
+      $img.setAttribute('class', 'preview');
+      $img.setAttribute('src', img_url);
+      $img.onclick = () => set_image(img_url);
+      $images.appendChild($img);
+    }
+  });
+}
+
 const $upload_button = document.getElementById('upload-button');
 $upload_button.onclick=handle_file_picked;
 
@@ -188,7 +231,7 @@ $pdf_upload_button.onclick = function() {
   const formData = new FormData();
   formData.append('hello', 'world');
   formData.append('file', $pdf_picker.files[0]);
-  
+
   const req = new XMLHttpRequest();
   req.open('POST', 'http://localhost:8080/documents');
   req.send(formData);
@@ -201,5 +244,5 @@ $pdf_upload_button.onclick = function() {
     set_flash('Error during upload. See console.');
   });
 }
-
+refresh_images();
 </script>

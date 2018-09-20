@@ -38,9 +38,17 @@ function serve(req, res) {
 
 function handleGet(req, res) {
   const parsed = url.parse(req.url);
+  
+  if (RegExp('/files/(.+)').test(parsed.pathname)) {
+    handleGetFile(req, res);
+    return;
+  }
   switch(parsed.pathname) {
   case '/':
     handleGetRoot(req, res);
+    break;
+  case '/images':
+    handleGetImages(req, res);
     break;
   default:
     res.statusCode = 404;
@@ -65,6 +73,48 @@ function handlePost(req, res) {
 function handleGetRoot(req, res) {
   res.write('online');
   res.end();
+}
+
+function handleGetImages(req, res) {
+  const images = findImages(IMAGES_DIR);
+  res.setHeader('content-type', 'application/json');
+  res.write(JSON.stringify(images));
+  res.end();
+}
+
+function findImages(path) {
+  const entities = fs.readdirSync(path, {withFileTypes: true});
+  let images = [];
+  for (let i in entities) {
+    const entity = entities[i];
+    const entity_path = `${path}/${entity.name}`;
+    if (entity.isFile()) {
+      images.push(entity_path);
+    } else if (entity.isDirectory()) {
+      images = images.concat(findImages(entity_path));
+    }
+  }
+
+  return images;
+}
+
+function handleGetFile(req, res) {
+  const parsed = url.parse(req.url);
+  const match = RegExp('/files/(.+)').exec(parsed.pathname);
+  const filename = match[1];
+  const sanitizePath = path.normalize(filename).replace(/^(\.\.[\/\\])+/, '');
+  const rs = fs.createReadStream(sanitizePath);
+  const ext = path.parse(filename).ext;
+  let contentType = undefined;
+  if (ext === 'pdf') {
+    contentType = 'application/pdf';
+  } else if (ext === 'png') {
+    contentType = 'image/png';
+  }
+  if (contentType) {
+    res.setHeader('content-type', contentType);
+  }
+  rs.pipe(res);
 }
 
 function handlePostDocuments(req, res) {
